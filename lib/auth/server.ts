@@ -1,27 +1,20 @@
-/**
- * Server-side authentication utilities
- * Helper functions for API routes to get authenticated user
- */
 import { NextRequest } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getServerSupabaseClient } from '@/lib/supabase/server-client'
 
-/**
- * Get authenticated user from request
- */
 export async function getAuthenticatedUser(request?: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient()
-
-    // getUser() will automatically use the cookies to validate the user
-    // and refresh the token if necessary (if called in an environment where cookies can be set)
+    const supabase = await getServerSupabaseClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) {
       console.error('Supabase getUser failed:', error?.message)
-      return { user: null, token: null, error: error?.message || 'Authentication failed' }
+      return {
+        user: null,
+        token: null,
+        error: error?.message || 'Authentication failed'
+      }
     }
 
-    // Get the session to get the access token
     const { data: { session } } = await supabase.auth.getSession()
 
     return {
