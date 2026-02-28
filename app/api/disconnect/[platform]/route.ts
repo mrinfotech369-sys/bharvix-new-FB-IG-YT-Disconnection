@@ -111,8 +111,15 @@ export async function DELETE(
         console.log(`[DISCONNECT] Successfully disconnected ${platform}.`)
         return NextResponse.json({ success: true, message: `Successfully disconnected ${platform}` })
     } catch (error: any) {
-        console.error(`[DISCONNECT] Critical Exception:`, error)
-        return NextResponse.json({ success: false, error: 'Internal server error during disconnect.' }, { status: 500 })
+        console.error(`[DISCONNECT] Critical Exception:`, {
+            message: error.message,
+            stack: error.stack,
+            platform: params.platform
+        })
+        return NextResponse.json({ 
+            success: false, 
+            error: error.message || 'Internal server error during disconnect.' 
+        }, { status: 500 })
     }
 }
 // NEXTJS HMR CACHE BUST 1

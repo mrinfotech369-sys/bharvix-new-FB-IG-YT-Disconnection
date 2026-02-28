@@ -35,8 +35,11 @@ export async function GET(request: NextRequest) {
             .order('created_at', { ascending: false });
 
         if (postsError) {
-            if (postsError.code !== '42P01') throw postsError;
-            console.warn("[DASHBOARD STATS] 'posts' table not found yet (PGRST205/42P01). Assuming 0 posts.");
+            if (postsError.code === '42P01') {
+                console.warn("[DASHBOARD STATS] 'posts' table not found yet (PGRST205/42P01). Assuming 0 posts.");
+            } else {
+                throw postsError;
+            }
         } else if (postsData) {
             posts = postsData;
         }
@@ -55,9 +58,12 @@ export async function GET(request: NextRequest) {
                 .select('*')
                 .in('post_id', postIds);
 
-            if (analyticsError && analyticsError.code !== '42P01') {
-                // Ignore relation does not exist if table isn't fully set up yet
-                console.error("Analytics Error:", analyticsError);
+            if (analyticsError) {
+                if (analyticsError.code === '42P01') {
+                    console.warn("[DASHBOARD STATS] 'post_analytics' table not found yet (PGRST205/42P01). Assuming 0 analytics.");
+                } else {
+                    console.error("Analytics Error:", analyticsError);
+                }
             } else if (analyticsData) {
                 analytics = analyticsData;
             }
@@ -76,9 +82,8 @@ export async function GET(request: NextRequest) {
             platformStats[p] = { posts: 0, reach: 0, impressions: 0, engagement: 0, likes: 0, comments: 0, shares: 0 };
         });
 
-        // Group posts by platform (Assuming posts have a 'platform' column or similar indicator. If not, we map through analytics platform)
+        // Group posts by platform
         posts?.forEach(post => {
-            // Rough generic handling if post platform isn't directly a column, but usually it is.
             const p = post.platform || 'General';
             if (!platformStats[p]) {
                 platformStats[p] = { posts: 0, reach: 0, impressions: 0, engagement: 0, likes: 0, comments: 0, shares: 0 };
@@ -87,7 +92,6 @@ export async function GET(request: NextRequest) {
         });
 
         analytics.forEach((a: any) => {
-            // Depending on schema, a.platform might represent the specific analytics record platform
             const p = a.platform || 'General';
 
             totalReach += Number(a.reach || 0);
@@ -131,7 +135,11 @@ export async function GET(request: NextRequest) {
         }, { status: 200 });
 
     } catch (error: any) {
-        console.error('Dashboard Stats API Error:', error);
+        console.error('Dashboard Stats API Error:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code
+        });
         return NextResponse.json(
             { error: error.message || 'Failed to fetch dashboard stats' },
             { status: 500 }
